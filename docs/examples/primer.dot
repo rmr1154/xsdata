@@ -1,0 +1,105 @@
+digraph G {
+        fontname = "Bitstream Vera Sans"
+        fontsize = 8
+
+        node [
+                fontname = "Bitstream Vera Sans"
+                fontsize = 8
+                shape = "record"
+        ]
+
+        edge [
+                fontname = "Bitstream Vera Sans"
+                fontsize = 8
+        ]
+
+        
+Items [
+
+    label = "{Items|+item : item[]\l}"
+
+
+]
+
+edge [
+        arrowhead = "empty"
+]
+Items +-- item
+
+
+
+item [
+
+    label = "{item|+productName : string\l+quantity : positiveInteger\l+USPrice : decimal\l+comment : comment\l+shipDate : date\l+partNum : string\l}"
+
+
+]
+
+edge [
+        arrowhead = "empty"
+]
+
+
+
+
+
+
+
+PurchaseOrderType [
+
+    label = "{PurchaseOrderType|+shipTo : USAddress\l+billTo : USAddress\l+comment : comment\l+items : Items\l+orderDate : date\l}"
+
+
+]
+
+edge [
+        arrowhead = "empty"
+]
+
+
+
+
+
+USAddress [
+
+    label = "{USAddress|+name : string\l+street : string\l+city : string\l+state : string\l+zip : decimal\l+country : NMTOKEN\l}"
+
+
+]
+
+edge [
+        arrowhead = "empty"
+]
+
+
+
+
+
+comment [
+
+    label = "{comment|+value : string\l}"
+
+
+]
+
+edge [
+        arrowhead = "empty"
+]
+
+
+
+
+
+purchaseOrder [
+
+    label = "{purchaseOrder|}"
+
+
+]
+
+edge [
+        arrowhead = "empty"
+]
+purchaseOrder -> PurchaseOrderType
+
+}
