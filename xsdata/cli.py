@@ -5,6 +5,7 @@ from typing import List
 import click
 import click_log
 
+from xsdata.downloader import SchemaDownloader
 from xsdata.logger import logger
 from xsdata.transformer import SchemaTransformer
 from xsdata.writer import writer
@@ -22,19 +23,24 @@ from xsdata.writer import writer
 @click.option(
     "--print", is_flag=True, default=False, help="Preview the resulting classes."
 )
+@click.option("--download", is_flag=True, default=False, help="Download remote schemas")
 @click_log.simple_verbosity_option(logger)
-def cli(sources: List, package: str, output: str, print: bool):
+def cli(sources: List, package: str, output: str, print: bool, download: bool):
     """
     Convert schema definitions to code.
 
     SOURCES can be one or more files or directories or urls.
     """
-    if print:
-        logger.setLevel(logging.ERROR)
-
     urls = process_sources(sources)
-    transformer = SchemaTransformer(output=output, print=print)
-    transformer.process(urls, package)
+
+    if download:
+        SchemaDownloader().process(urls, package)
+    else:
+        if print:
+            logger.setLevel(logging.ERROR)
+
+        transformer = SchemaTransformer(output=output, print=print)
+        transformer.process(urls, package)
 
 
 def process_sources(sources: List[str]) -> List[str]:
