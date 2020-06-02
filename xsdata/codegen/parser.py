@@ -94,7 +94,7 @@ class SchemaParser(XmlParser):
         """Add common namespaces like xml, xsi, xlink if they are missing."""
         obj.ns_map = element.nsmap
         namespaces = obj.ns_map.values()
-        for namespace in Namespace:
+        for namespace in Namespace.common():
             if namespace.uri not in namespaces:
                 obj.ns_map[namespace.prefix] = namespace.uri
 

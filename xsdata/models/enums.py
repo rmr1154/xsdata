@@ -16,6 +16,8 @@ class Namespace(Enum):
     XML = "http://www.w3.org/XML/1998/namespace"
     XSI = "http://www.w3.org/2001/XMLSchema-instance"
     XLINK = "http://www.w3.org/1999/xlink"
+    SOAP11 = "http://schemas.xmlsoap.org/wsdl/soap/"
+    SOAP12 = "http://schemas.xmlsoap.org/wsdl/soap12/"
 
     @property
     def uri(self) -> str:
@@ -32,6 +34,15 @@ class Namespace(Enum):
     @classmethod
     def get_enum(cls, uri: Optional[str]) -> Optional["Namespace"]:
         return __STANDARD_NAMESPACES__.get(uri) if uri else None
+
+    @classmethod
+    def common(cls) -> Iterable["Namespace"]:
+        return (
+            Namespace.XS,
+            Namespace.XML,
+            Namespace.XSI,
+            Namespace.XLINK,
+        )
 
 
 __STANDARD_NAMESPACES__ = {ns.uri: ns for ns in Namespace}
@@ -238,3 +249,13 @@ class ProcessType(Enum):
     LAX = "lax"
     SKIP = "skip"
     STRICT = "strict"
+
+
+class BindingStyle(Enum):
+    RPC = "rpc"
+    DOCUMENT = "document"
+
+
+class UseChoice(Enum):
+    LITERAL = "literal"
+    ENCODED = "encoded"

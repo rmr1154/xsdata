@@ -10,9 +10,11 @@ from typing import Optional
 from typing import TypeVar
 
 from xsdata.exceptions import SchemaValueError
+from xsdata.formats.dataclass.models.constants import XmlType
 from xsdata.models.enums import DataType
 from xsdata.models.enums import FormType
 from xsdata.models.enums import Namespace
+from xsdata.models.enums import NamespaceType
 from xsdata.utils import text
 
 T = TypeVar("T", bound="ElementBase")
@@ -197,3 +199,39 @@ class ElementBase:
             elif isinstance(value, ElementBase):
                 if not condition or condition(value):
                     yield value
+
+
+def attribute(default: Any = None, init: bool = True, **kwargs: str) -> Any:
+    """Shortcut method for attribute fields."""
+    kwargs.update(type=XmlType.ATTRIBUTE)
+    return field(init=init, default=default, metadata=kwargs)
+
+
+def element(init: bool = True, **kwargs: str) -> Any:
+    """Shortcut method for element fields."""
+    kwargs.update(type=XmlType.ELEMENT)
+    return field(init=init, default=None, metadata=kwargs)
+
+
+def any_element(init: bool = True, **kwargs: str) -> Any:
+    """Shortcut method for wildcard fields."""
+    kwargs.update(type=XmlType.WILDCARD, namespace=NamespaceType.ANY.value)
+    return field(init=init, default=None, metadata=kwargs)
+
+
+def array_element(init: bool = True, **kwargs: str) -> Any:
+    """Shortcut method for list element fields."""
+    kwargs.update(type=XmlType.ELEMENT)
+    return field(init=init, default_factory=list, metadata=kwargs)
+
+
+def array_any_element(init: bool = True, **kwargs: str) -> Any:
+    """Shortcut method for list wildcard fields."""
+    kwargs.update(type=XmlType.WILDCARD, namespace=NamespaceType.ANY.value)
+    return field(init=init, default_factory=list, metadata=kwargs)
+
+
+def array_other_element(init: bool = True, **kwargs: str) -> Any:
+    """Shortcut method for list wildcard ##other fields."""
+    kwargs.update(type=XmlType.WILDCARD, namespace=NamespaceType.OTHER.value)
+    return field(init=init, default_factory=list, metadata=kwargs)

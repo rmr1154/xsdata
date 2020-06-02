@@ -10,43 +10,20 @@ from typing import Optional
 from typing import Union as UnionType
 
 from xsdata.exceptions import SchemaValueError
-from xsdata.formats.dataclass.models.constants import XmlType
 from xsdata.formats.dataclass.serializers import XmlSerializer
 from xsdata.models.enums import DataType
 from xsdata.models.enums import FormType
 from xsdata.models.enums import Mode
 from xsdata.models.enums import Namespace
-from xsdata.models.enums import NamespaceType
 from xsdata.models.enums import ProcessType
 from xsdata.models.enums import UseType
+from xsdata.models.mixins import array_any_element
+from xsdata.models.mixins import array_element
+from xsdata.models.mixins import attribute
+from xsdata.models.mixins import element
 from xsdata.models.mixins import ElementBase
 from xsdata.utils import text
 from xsdata.utils.text import collapse_whitespace
-
-
-def attribute(default: Anything = None, init: bool = True, **kwargs: str) -> Anything:
-    kwargs.update(type=XmlType.ATTRIBUTE)
-    return field(init=init, default=default, metadata=kwargs)
-
-
-def element(init: bool = True, **kwargs: str) -> Anything:
-    kwargs.update(type=XmlType.ELEMENT)
-    return field(init=init, default=None, metadata=kwargs)
-
-
-def array_element(init: bool = True, **kwargs: str) -> Anything:
-    kwargs.update(type=XmlType.ELEMENT)
-    return field(init=init, default_factory=list, metadata=kwargs)
-
-
-def array_any_element(init: bool = True, **kwargs: str) -> Anything:
-    kwargs.update(type=XmlType.WILDCARD, namespace=NamespaceType.ANY.value)
-    return field(init=init, default_factory=list, metadata=kwargs)
-
-
-def occurrences(min_value: int, max_value: UnionType[int, str]) -> Dict[str, int]:
-    max_value = sys.maxsize if max_value == "unbounded" else int(max_value)
-    return {"min_occurs": min_value, "max_occurs": max_value}
 
 
 @dataclass(frozen=True)
@@ -269,7 +246,7 @@ class List(AnnotationBase):
         return self.item_type
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        return occurrences(0, sys.maxsize)
+        return {"min_occurs": 0, "max_occurs": sys.maxsize}
 
 
 @dataclass
@@ -443,7 +420,12 @@ class Any(AnnotationBase):
         return f"{prefix}:{suffix}" if prefix else suffix
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        return occurrences(self.min_occurs, self.max_occurs)
+        max_occurs = sys.maxsize if self.max_occurs == "unbounded" else self.max_occurs
+
+        return {
+            "min_occurs": self.min_occurs,
+            "max_occurs": max_occurs,
+        }
 
 
 @dataclass
@@ -465,7 +447,12 @@ class All(AnnotationBase):
     groups: Array["Group"] = array_element(name="group")
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        return occurrences(self.min_occurs, self.max_occurs)
+        max_occurs = sys.maxsize if self.max_occurs == "unbounded" else self.max_occurs
+
+        return {
+            "min_occurs": self.min_occurs,
+            "max_occurs": max_occurs,
+        }
 
 
 @dataclass
@@ -491,9 +478,13 @@ class Sequence(AnnotationBase):
     any: Array["Any"] = array_element()
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        restrictions = occurrences(self.min_occurs, self.max_occurs)
-        restrictions.update(sequential=True)
-        return restrictions
+        max_occurs = sys.maxsize if self.max_occurs == "unbounded" else self.max_occurs
+
+        return {
+            "sequential": True,
+            "min_occurs": self.min_occurs,
+            "max_occurs": max_occurs,
+        }
 
 
 @dataclass
@@ -519,9 +510,13 @@ class Choice(AnnotationBase):
     any: Array["Any"] = array_element()
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        return occurrences(
-            self.min_occurs if self.min_occurs > 1 else 0, self.max_occurs
-        )
+        min_occurs = self.min_occurs if self.min_occurs > 1 else 0
+        max_occurs = sys.maxsize if self.max_occurs == "unbounded" else self.max_occurs
+
+        return {
+            "min_occurs": min_occurs,
+            "max_occurs": max_occurs,
+        }
 
 
 @dataclass
@@ -555,7 +550,12 @@ class Group(AnnotationBase):
         return self.ref
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        return occurrences(self.min_occurs, self.max_occurs)
+        max_occurs = sys.maxsize if self.max_occurs == "unbounded" else self.max_occurs
+
+        return {
+            "min_occurs": self.min_occurs,
+            "max_occurs": max_occurs,
+        }
 
 
 @dataclass
@@ -1150,11 +1150,18 @@ class Element(AnnotationBase):
         return []
 
     def get_restrictions(self) -> Dict[str, Anything]:
-        restrictions = occurrences(self.min_occurs, self.max_occurs)
+        max_occurs = sys.maxsize if self.max_occurs == "unbounded" else self.max_occurs
+
+        restrictions = {
+            "min_occurs": self.min_occurs,
+            "max_occurs": max_occurs,
+        }
+
         if self.simple_type:
             restrictions.update(self.simple_type.get_restrictions())
+
         if self.nillable:
-            restrictions.update({"nillable": True})
+            restrictions.update(nillable=True)
 
         return restrictions
 
