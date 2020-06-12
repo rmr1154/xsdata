@@ -24,7 +24,7 @@ class SchemaTransformerTests(FactoryTestCase):
     @mock.patch.object(SchemaTransformer, "analyze_classes")
     @mock.patch.object(SchemaTransformer, "assign_packages")
     @mock.patch.object(SchemaTransformer, "process_schema")
-    def test_process_with_print_true(
+    def test_process_schemas_with_print_true(
         self,
         mock_process_schema,
         mock_assign_packages,
@@ -44,7 +44,7 @@ class SchemaTransformerTests(FactoryTestCase):
             "http://xsdata/bar.xsd": schema_classes[1:],
         }
 
-        self.transformer.process(urls, package)
+        self.transformer.process_schemas(urls, package)
 
         mock_process_schema.assert_has_calls(list(map(mock.call, urls)))
         mock_assign_packages.assert_called_once_with(package)
@@ -64,7 +64,7 @@ class SchemaTransformerTests(FactoryTestCase):
     @mock.patch.object(SchemaTransformer, "analyze_classes")
     @mock.patch.object(SchemaTransformer, "assign_packages")
     @mock.patch.object(SchemaTransformer, "process_schema")
-    def test_process_with_print_false(
+    def test_process_schemas_with_print_false(
         self,
         mock_process_schema,
         mock_assign_packages,
@@ -85,7 +85,7 @@ class SchemaTransformerTests(FactoryTestCase):
             "http://xsdata/bar.xsd": schema_classes[1:],
         }
 
-        self.transformer.process(urls, package)
+        self.transformer.process_schemas(urls, package)
 
         mock_process_schema.assert_has_calls(list(map(mock.call, urls)))
         mock_assign_packages.assert_called_once_with(package)
@@ -103,7 +103,7 @@ class SchemaTransformerTests(FactoryTestCase):
     @mock.patch.object(SchemaTransformer, "analyze_classes")
     @mock.patch.object(SchemaTransformer, "assign_packages")
     @mock.patch.object(SchemaTransformer, "process_schema")
-    def test_process_with_zero_classes_after_analyze(
+    def test_process_schemas_with_zero_classes_after_analyze(
         self,
         mock_process_schema,
         mock_assign_packages,
@@ -113,7 +113,7 @@ class SchemaTransformerTests(FactoryTestCase):
         urls = ["http://xsdata/foo.xsd", "http://xsdata/bar.xsd"]
         package = "test"
 
-        self.transformer.process(urls, package)
+        self.transformer.process_schemas(urls, package)
         self.assertEqual(0, mock_analyze_classes.call_count)
         self.assertEqual(0, mock_assign_packages.call_count)
 
@@ -126,13 +126,13 @@ class SchemaTransformerTests(FactoryTestCase):
     def test_process_schema(
         self, mock_parse_schema, mock_generate_classes, mock_logger_info,
     ):
-        schema = Schema(target_namespace="thug")
+        schema = Schema(target_namespace="thug", location="main")
         schema.includes.append(Include(location="foo"))
         schema.overrides.append(Override())
         schema.imports.append(Import(location="bar"))
         schema.imports.append(Import(location="fails"))
-        schema_foo = Schema()
-        schema_bar = Schema()
+        schema_foo = Schema(location="foo")
+        schema_bar = Schema(location="bar")
 
         mock_generate_classes.side_effect = [
             ClassFactory.list(1),

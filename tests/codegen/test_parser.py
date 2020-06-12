@@ -197,7 +197,7 @@ class SchemaParserTests(TestCase):
         schema = Schema()
         self.parser.resolve_schemas_locations(schema)
 
-        self.parser.schema_location = Path.cwd()
+        self.parser.location = Path.cwd()
 
         mock_resolve_path.side_effect = lambda x: Path.cwd().joinpath(x)
         mock_resolve_local_path.side_effect = lambda x, y: Path.cwd().joinpath(x)
@@ -235,7 +235,7 @@ class SchemaParserTests(TestCase):
         self.assertIsNone(self.parser.resolve_path("foo"))
         iam = Path(__file__)
 
-        self.parser.schema_location = iam.as_uri()
+        self.parser.location = iam.as_uri()
         self.assertIsNone(self.parser.resolve_path(""))
         self.assertIsNone(self.parser.resolve_path(None))
 
@@ -258,7 +258,7 @@ class SchemaParserTests(TestCase):
             self.parser.resolve_local_path("http://something", Namespace.XSI.value),
         )
         iam = Path(__file__)
-        self.parser.schema_location = iam.as_uri()
+        self.parser.location = iam.as_uri()
         self.assertEqual(iam.as_uri(), self.parser.resolve_local_path(iam.name, None))
 
     def test_end_attribute(self):

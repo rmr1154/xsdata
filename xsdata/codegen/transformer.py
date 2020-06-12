@@ -14,10 +14,12 @@ from urllib.request import urlopen
 from xsdata.codegen.analyzer import ClassAnalyzer
 from xsdata.codegen.builder import ClassBuilder
 from xsdata.codegen.models import Class
+from xsdata.codegen.parser import DefinitionsParser
 from xsdata.codegen.parser import SchemaParser
 from xsdata.codegen.writer import writer
 from xsdata.logger import logger
 from xsdata.models.enums import COMMON_SCHEMA_DIR
+from xsdata.models.wsdl import Definitions
 from xsdata.models.xsd import Import
 from xsdata.models.xsd import Include
 from xsdata.models.xsd import Override
@@ -45,7 +47,19 @@ class SchemaTransformer:
     class_map: Dict[str, List[Class]] = field(init=False, default_factory=dict)
     processed: List[str] = field(init=False, default_factory=list)
 
-    def process(self, uris: List[str], package: str):
+    def process_definitions(self, uri: str, package: str):
+
+        definitions = self.parse_definitions(uri)
+
+        if definitions is None:
+            raise Exception("Failed")
+
+        if definitions.types:
+            collections.apply(definitions.types.schemas, self.convert_schema)
+
+        self.process_classes(package)
+
+    def process_schemas(self, uris: List[str], package: str):
         """
         Run main processes.
 
@@ -55,6 +69,9 @@ class SchemaTransformer:
 
         collections.apply(uris, self.process_schema)
 
+        self.process_classes(package)
+
+    def process_classes(self, package: str):
         classes = [cls for classes in self.class_map.values() for cls in classes]
         class_num, inner_num = self.count_classes(classes)
         if class_num:
@@ -78,23 +95,33 @@ class SchemaTransformer:
             logger.warning("Analyzer returned zero classes!")
 
     def process_schema(self, uri: str, namespace: Optional[str] = None):
-        """Recursively parse the given schema uri and all the imports and
-        generate a class map indexed with the schema uri."""
+        """
+        Parse and convert schema to codegen models.
+
+        Avoid processing the same uri twice and fail silently if
+        anything goes wrong with fetching and parsing the schema
+        document.
+        """
         if uri in self.processed:
             logger.debug("Already processed skipping: %s", uri)
-            return
+        else:
+            logger.info("Parsing schema %s", os.path.basename(uri))
+            self.processed.append(uri)
 
-        logger.info("Parsing schema %s", os.path.basename(uri))
-        self.processed.append(uri)
-        schema = self.parse_schema(uri, namespace)
-        if schema is None:
-            return
+            schema = self.parse_schema(uri, namespace)
+            if schema:
+                self.convert_schema(schema)
 
+    def convert_schema(self, schema: Schema):
+        """Convert schema instance to codegen classes and process imports to
+        other schemas."""
         for sub in schema.included():
             if sub.location:
                 self.process_schema(sub.location, schema.target_namespace)
 
-        self.class_map[uri] = self.generate_classes(schema)
+        assert schema.location is not None
+
+        self.class_map[schema.location] = self.generate_classes(schema)
 
     def generate_classes(self, schema: Schema) -> List[Class]:
         """Convert and return the given schema tree to classes."""
@@ -118,14 +145,56 @@ class SchemaTransformer:
         """
 
         try:
-            schema = urlopen(uri).read()
+            input_stream = urlopen(uri).read()
         except OSError:
             logger.warning("Schema not found %s", uri)
         else:
-            parser = SchemaParser(target_namespace=namespace, schema_location=uri)
-            return parser.from_bytes(schema, Schema)
+            parser = SchemaParser(target_namespace=namespace, location=uri)
+            return parser.from_bytes(input_stream, Schema)
 
         return None
+
+    @classmethod
+    def parse_definitions(
+        cls, uri: str, namespace: Optional[str] = None
+    ) -> Optional[Definitions]:
+        """
+        Parse the given schema uri and return the schema tree object.
+
+        Optionally add the target namespace if the schema is included
+        and is missing a target namespace.
+        """
+
+        try:
+            input_stream = urlopen(uri).read()
+        except OSError:
+            logger.warning("Definitions not found %s", uri)
+        else:
+            parser = DefinitionsParser(target_namespace=namespace, location=uri)
+            definitions = parser.from_bytes(input_stream, Definitions)
+
+            for imp in definitions.imports:
+                if not imp.location:
+                    continue
+
+                res = cls.parse_definitions(imp.location, definitions.target_namespace)
+
+                if not res:
+                    continue
+
+                if res.types:
+
+                    if not definitions.types:
+                        definitions.types = res.types
+                    else:
+                        definitions.types.schemas.extend(res.types.schemas)
+                definitions.messages.extend(res.messages)
+                definitions.port_types.extend(res.port_types)
+                definitions.bindings.extend(res.bindings)
+                definitions.services.extend(res.services)
+                definitions.extensible_elements.extend(res.extensible_elements)
+
+        return definitions
 
     @staticmethod
     def analyze_classes(classes: List[Class]) -> List[Class]:

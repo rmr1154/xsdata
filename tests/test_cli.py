@@ -9,6 +9,7 @@ from click.testing import CliRunner
 from xsdata import cli
 from xsdata.cli import resolve_source
 from xsdata.codegen.transformer import SchemaTransformer
+from xsdata.exceptions import CodeGenerationError
 from xsdata.logger import logger
 
 root = Path(__file__).parent.parent
@@ -21,39 +22,39 @@ class CliTests(TestCase):
         self.runner = CliRunner()
         super().setUp()
 
-    @mock.patch.object(SchemaTransformer, "process")
+    @mock.patch.object(SchemaTransformer, "process_schemas")
     @mock.patch.object(SchemaTransformer, "__init__", return_value=None)
-    def test_default_output(self, mock_init, mock_process):
+    def test_default_output(self, mock_init, mock_process_schemas):
         source = fixtures.joinpath("chapter03.xsd")
         result = self.runner.invoke(cli, [str(source), "--package", "foo"])
         self.assertIsNone(result.exception)
         mock_init.assert_called_once_with(output="pydata", print=False)
 
-        self.assertEqual([source.as_uri()], mock_process.call_args[0][0])
-        self.assertEqual("foo", mock_process.call_args[0][1])
+        self.assertEqual([source.as_uri()], mock_process_schemas.call_args[0][0])
+        self.assertEqual("foo", mock_process_schemas.call_args[0][1])
 
-    @mock.patch.object(SchemaTransformer, "process")
+    @mock.patch.object(SchemaTransformer, "process_schemas")
     @mock.patch.object(SchemaTransformer, "__init__", return_value=None)
-    def test_custom_output(self, mock_init, mock_process):
+    def test_custom_output(self, mock_init, mock_process_schemas):
         source = fixtures.joinpath("chapter03.xsd")
         result = self.runner.invoke(
             cli, [str(source), "--package", "foo", "--output", "plantuml"]
         )
         self.assertIsNone(result.exception)
-        self.assertEqual([source.as_uri()], mock_process.call_args[0][0])
-        self.assertEqual("foo", mock_process.call_args[0][1])
+        self.assertEqual([source.as_uri()], mock_process_schemas.call_args[0][0])
+        self.assertEqual("foo", mock_process_schemas.call_args[0][1])
 
         mock_init.assert_called_once_with(output="plantuml", print=False)
 
-    @mock.patch.object(SchemaTransformer, "process")
+    @mock.patch.object(SchemaTransformer, "process_schemas")
     @mock.patch.object(SchemaTransformer, "__init__", return_value=None)
-    def test_print_mode(self, mock_init, mock_process):
+    def test_print_mode(self, mock_init, mock_process_schemas):
         source = fixtures.joinpath("chapter03.xsd")
         result = self.runner.invoke(cli, [str(source), "--package", "foo", "--print"])
 
         self.assertIsNone(result.exception)
-        self.assertEqual([source.as_uri()], mock_process.call_args[0][0])
-        self.assertEqual("foo", mock_process.call_args[0][1])
+        self.assertEqual([source.as_uri()], mock_process_schemas.call_args[0][0])
+        self.assertEqual("foo", mock_process_schemas.call_args[0][1])
         self.assertEqual(logging.ERROR, logger.getEffectiveLevel())
 
         mock_init.assert_called_once_with(output="pydata", print=True)
@@ -62,9 +63,16 @@ class CliTests(TestCase):
         file = fixtures.joinpath("chapter03.xsd")
         url = "http://www.xsdata/schema.xsd"
 
-        self.assertEqual([file.as_uri()], list(resolve_source(str(file))))
-        self.assertEqual([url], list(resolve_source(url)))
+        self.assertEqual([file.as_uri()], list(resolve_source(str(file), wsdl=False)))
+        self.assertEqual([url], list(resolve_source(url, wsdl=False)))
         self.assertEqual(
             [x.as_uri() for x in fixtures.glob("*.xsd")],
-            list(resolve_source(str(fixtures))),
+            list(resolve_source(str(fixtures), wsdl=False)),
+        )
+
+        with self.assertRaises(CodeGenerationError) as cm:
+            list(resolve_source(str(fixtures), wsdl=True))
+
+        self.assertEqual(
+            "WSDL mode doesn't support scanning directories.", str(cm.exception)
         )

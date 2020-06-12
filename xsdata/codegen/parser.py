@@ -13,6 +13,7 @@ from lxml.etree import QName
 
 from xsdata.formats.dataclass.parsers.nodes import XmlNode
 from xsdata.formats.dataclass.parsers.xml import XmlParser
+from xsdata.models import wsdl
 from xsdata.models import xsd
 from xsdata.models.enums import FormType
 from xsdata.models.enums import Mode
@@ -38,7 +39,7 @@ class SchemaParser(XmlParser):
     :param target_namespace:
     :param default_attributes:
     :param default_open_content:
-    :param schema_location:
+    :param location:
     """
 
     element_form: Optional[FormType] = field(init=False, default=None)
@@ -46,7 +47,7 @@ class SchemaParser(XmlParser):
     target_namespace: Optional[str] = field(default=None)
     default_attributes: Optional[str] = field(default=None)
     default_open_content: Optional[xsd.DefaultOpenContent] = field(default=None)
-    schema_location: Optional[str] = field(default=None)
+    location: Optional[str] = field(default=None)
 
     def dequeue(self, element: Element, queue: XmlNodes, objects: ParsedObjects) -> Any:
         """Override parent method to set element index and namespaces map."""
@@ -110,10 +111,10 @@ class SchemaParser(XmlParser):
     def resolve_schemas_locations(self, obj: xsd.Schema):
         """Resolve the locations of the schema overrides, redefines, includes
         and imports relatively to the schema location."""
-        if not self.schema_location:
+        if not self.location:
             return
 
-        obj.location = self.schema_location
+        obj.location = self.location
         for over in obj.overrides:
             over.location = self.resolve_path(over.schema_location)
 
@@ -130,11 +131,7 @@ class SchemaParser(XmlParser):
         """Resolve the given location string relatively the schema location
         path."""
 
-        return (
-            urljoin(self.schema_location, location)
-            if self.schema_location and location
-            else None
-        )
+        return urljoin(self.location, location) if self.location and location else None
 
     def resolve_local_path(
         self, location: Optional[str], namespace: Optional[str]
@@ -207,3 +204,16 @@ class SchemaParser(XmlParser):
             self.set_schema_namespaces(obj, element)
             self.add_default_imports(obj)
             self.resolve_schemas_locations(obj)
+
+
+@dataclass
+class DefinitionsParser(SchemaParser):
+    """A simple parser to convert a wsdl to an easy to handle data structure
+    based on dataclasses."""
+
+    def end_definitions(self, obj: T, element: Element):
+        """Normalize various properties for the schema and it's children."""
+        if isinstance(obj, wsdl.Definitions):
+            if self.location:
+                for imp in obj.imports:
+                    imp.location = self.resolve_path(imp.location)
